@@ -68,16 +68,16 @@ defmodule AwsSigner do
   # private
   #
 
-  def hash(string),
+  defp hash(string),
     do: :crypto.hash(:sha256, string) |> Base.encode16(case: :lower)
 
-  def hmac(key, string),
+  defp hmac(key, string),
     do: :crypto.hmac(:sha256, key, string)
 
   #
   # "2020-11-19 12:28:01.699631Z" => "20201119T122801Z"
   #
-  def amz_date() do
+  defp amz_date() do
     @datetime_provider.utc_now()
     |> Map.put(:microsecond, {0, 0})
     |> DateTime.to_iso8601()
@@ -85,7 +85,7 @@ defmodule AwsSigner do
   end
 
   # https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
-  def canonical_request(verb, uri, headers, content_sha) do
+  defp canonical_request(verb, uri, headers, content_sha) do
     [
       verb,
       path(uri.path),
@@ -97,7 +97,7 @@ defmodule AwsSigner do
     |> Enum.join("\n")
   end
 
-  def path(nil),
+  defp path(nil),
     do: "/"
 
   #
@@ -113,7 +113,7 @@ defmodule AwsSigner do
   #   but the canonical form (which we need here) is:
   #     /documents%2520and%2520settings/
   #
-  def path(str) do
+  defp path(str) do
     str
     |> AwsSigner.Util.encode_rfc3986()
     |> AwsSigner.Util.encode_rfc3986()
@@ -124,13 +124,13 @@ defmodule AwsSigner do
   # params with missing value.
   # Example: "foo=bar&baz" becomes "baz=&foo=bar"
   #
-  def normalize_query(nil),
+  defp normalize_query(nil),
     do: ""
 
-  def normalize_query(""),
+  defp normalize_query(""),
     do: ""
 
-  def normalize_query(query) do
+  defp normalize_query(query) do
     query
     |> String.split("&")
     |> Enum.map(&String.split(&1, "="))
@@ -141,13 +141,13 @@ defmodule AwsSigner do
     end)
   end
 
-  def canonical_headers(headers),
+  defp canonical_headers(headers),
     do: Enum.map_join(headers, "", fn {k, v} -> "#{k}:#{v}\n" end)
 
-  def signed_headers(headers),
+  defp signed_headers(headers),
     do: Enum.map_join(headers, ";", fn {k, _} -> k end)
 
-  def string_to_sign(date, creq, region, service) do
+  defp string_to_sign(date, creq, region, service) do
     [
       "AWS4-HMAC-SHA256",
       date,
@@ -157,10 +157,10 @@ defmodule AwsSigner do
     |> Enum.join("\n")
   end
 
-  def scope(date, region, service),
+  defp scope(date, region, service),
     do: [String.slice(date, 0..7), region, service, "aws4_request"] |> Enum.join("/")
 
-  def signature(secret_access_key, date, region, service, sts) do
+  defp signature(secret_access_key, date, region, service, sts) do
     "AWS4#{secret_access_key}"
     |> hmac(String.slice(date, 0..7))
     |> hmac(region)
