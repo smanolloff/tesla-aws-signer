@@ -71,8 +71,13 @@ defmodule AwsSigner do
   defp hash(string),
     do: :crypto.hash(:sha256, string) |> Base.encode16(case: :lower)
 
-  defp hmac(key, string),
-    do: :crypto.hmac(:sha256, key, string)
+  if Code.ensure_loaded?(:crypto) and function_exported?(:crypto, :mac, 4) do
+    defp hmac(key, string),
+      do: :crypto.mac(:hmac, :sha256, key, string)
+  else
+    defp hmac(key, string),
+      do: :crypto.hmac(:sha256, key, string)
+  end
 
   #
   # "2020-11-19 12:28:01.699631Z" => "20201119T122801Z"
