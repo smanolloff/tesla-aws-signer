@@ -71,8 +71,11 @@ defmodule AwsSigner do
   defp hash(string),
     do: :crypto.hash(:sha256, string) |> Base.encode16(case: :lower)
 
-  defp hmac(key, string),
-    do: :crypto.mac(:hmac, :sha256, key, string)
+  defp hmac(key, string) do
+    if System.otp_release() >= "22",
+      do: :crypto.mac(:hmac, :sha256, key, string),
+    else: :crypto.hmac(:sha256, key, string)
+  end
 
   #
   # "2020-11-19 12:28:01.699631Z" => "20201119T122801Z"
