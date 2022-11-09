@@ -35,7 +35,7 @@ defmodule AwsSigner.Providers.AssumeRoleWithWebIdentity do
     do: URI.encode_www_form(str)
 
   defp query(arn, session_name, token) do
-    "Action=AssumeRole" <>
+    "Action=AssumeRoleWithWebIdentity" <>
       "&RoleArn=#{encode(arn)}" <>
       "&RoleSessionName=#{encode(session_name)}" <>
       "&Version=2011-06-15" <>

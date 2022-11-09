@@ -44,7 +44,7 @@ defmodule AwsSigner.Providers.AssumeRoleWithWebIdentityTest do
     assert [url] = call_args
 
     assert url ==
-             "https://sts.eu-central-1.amazonaws.com?Action=AssumeRole" <>
+             "https://sts.eu-central-1.amazonaws.com?Action=AssumeRoleWithWebIdentity" <>
                "&RoleArn=arn%3Aaws%3Aiam%3A%3A123456789012%3Arole%2Faws-test-web-role" <>
                "&RoleSessionName=default" <>
                "&Version=2011-06-15" <>
