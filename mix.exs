@@ -47,7 +47,8 @@ defmodule AwsSigner.MixProject do
       {:jason, ">= 1.0.0"},
       {:cachex, "~> 3.3", optional: true},
       {:hackney, "~> 1.17", only: :dev},
-      {:assertions, "~> 0.10", only: :test}
+      {:assertions, "~> 0.10", only: :test},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false}
     ]
   end
 end
