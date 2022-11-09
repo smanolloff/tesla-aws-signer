@@ -8,14 +8,21 @@ defmodule AwsSigner.MixProject do
       elixir: "~> 1.10",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
+      description: description(),
       xref: [exclude: [IEx, IEx.Pry]],
-      deps: deps()
+      deps: deps(),
+      name: "Tesla AWS Signer",
+      source_url: "https://github.com/smanolloff/tesla-aws-signer"
     ]
   end
 
   # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["test/mocks", "lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  defp description() do
+    "A Tesla plug for signing HTTP requests with AWS Signature Version 4."
+  end
 
   # Run "mix help compile.app" to learn about applications.
   def application do

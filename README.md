@@ -2,6 +2,16 @@
 
 A [Tesla](https://github.com/teamon/tesla) plug for signing HTTP requests with [AWS Signature Version 4](https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html).
 
+## Installation
+
+```
+def deps do
+  [
+    {:aws_signer, "~> 1.0"}
+  ]
+end
+```
+
 ## Usage
 
 ```elixir
