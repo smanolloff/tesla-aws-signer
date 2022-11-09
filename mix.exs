@@ -4,11 +4,12 @@ defmodule AwsSigner.MixProject do
   def project do
     [
       app: :aws_signer,
-      version: "1.0.0",
+      version: "1.0.7",
       elixir: "~> 1.10",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       description: description(),
+      package: package(),
       xref: [exclude: [IEx, IEx.Pry]],
       deps: deps(),
       name: "Tesla AWS Signer",
@@ -22,6 +23,14 @@ defmodule AwsSigner.MixProject do
 
   defp description() do
     "A Tesla plug for signing HTTP requests with AWS Signature Version 4."
+  end
+
+  defp package() do
+    [
+      files: ~w(lib CHANGELOG mix.exs README* LICENSE*),
+      licenses: ["Apache-2.0"],
+      links: %{"GitHub" => "https://github.com/smanolloff/tesla-aws-signer"}
+    ]
   end
 
   # Run "mix help compile.app" to learn about applications.
