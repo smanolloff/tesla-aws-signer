@@ -1,9 +1,8 @@
 defmodule AwsSigner.TeslaMiddleware do
-  alias AwsSigner
+  alias AwsSigner.Cache
   require Logger
 
   @behaviour Tesla.Middleware
-  @cache_provider Application.get_env(:aws_signer, :cache_provider, Cachex)
 
   def call(env, next, opts) do
     env
@@ -12,7 +11,7 @@ defmodule AwsSigner.TeslaMiddleware do
   end
 
   def sign(env, opts) do
-    credentials = get_cedentials(opts)
+    credentials = get_credentials(opts)
 
     signature =
       AwsSigner.sign_v4(
@@ -34,57 +33,32 @@ defmodule AwsSigner.TeslaMiddleware do
   # private
   #
 
+  defp get_credentials(opts) do
+    arn = Keyword.fetch!(opts, :arn)
+    fallback_fn = fn ->
+      case apply(provider(opts), :get_credentials, [opts]) do
+        %AwsSigner.Credentials{} = res ->
+          {:ok, expiration, _} = DateTime.from_iso8601(res.expiration)
+          expire_at = DateTime.to_unix(expiration, :millisecond) - 10_000
+          {:ok, res, expire_at}
+
+        any ->
+          {:error, any}
+      end
+    end
+
+    case Cache.fetch(arn, fallback_fn) do
+      {:hit, {value, _}} -> value
+      {:miss, {value, _}} -> value
+      {:miss, :error, any} -> raise "Bad return from cache fallback: #{inspect(any)}"
+    end
+  end
+
   defp provider(opts) do
     case Keyword.fetch!(opts, :auth_method) do
       :instance_profile -> AwsSigner.Providers.InstanceProfile
       :assume_role -> AwsSigner.Providers.AssumeRole
       :assume_role_with_web_identity -> AwsSigner.Providers.AssumeRoleWithWebIdentity
-    end
-  end
-
-  #
-  # Checks cache for already available credentials for this arn
-  # If not, calls provider.get_credentials()
-  #
-  if Code.ensure_compiled(@cache_provider) == {:module, @cache_provider} do
-    defp get_cedentials(opts) do
-      arn = Keyword.fetch!(opts, :arn)
-      cache = Keyword.get(opts, :cachex_name)
-      fallback = fallback_fn(opts)
-
-      if cache do
-        case @cache_provider.fetch(cache, arn, fallback) do
-          {:commit, res} ->
-            {:ok, expiration, _} = DateTime.from_iso8601(res.expiration)
-            epoch_ms = DateTime.to_unix(expiration, :millisecond)
-
-            @cache_provider.expire_at(cache, arn, epoch_ms - 10_000)
-            res
-
-          {op, res} when op in [:ok, :ignore] ->
-            res
-
-          err ->
-            Logger.error("Cache error: #{inspect(err)}")
-            fallback.()
-        end
-      else
-        fallback.()
-      end
-    end
-  else
-    defp get_cedentials(opts) do
-      apply(provider(opts), :get_credentials, [opts])
-    end
-  end
-
-  defp fallback_fn(opts) do
-    metadata = Logger.metadata()
-
-    fn ->
-      # Don't lose logger metadata
-      Logger.metadata(metadata)
-      apply(provider(opts), :get_credentials, [opts])
     end
   end
 

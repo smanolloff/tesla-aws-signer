@@ -1,6 +1,4 @@
 defmodule AwsSigner.Providers.AssumeRole do
-  alias AwsSigner.Credentials
-
   @client Application.get_env(:aws_signer, :aws_client, AwsSigner.Client)
 
   @spec get_credentials(
@@ -9,7 +7,7 @@ defmodule AwsSigner.Providers.AssumeRole do
           session_name: String.t(),
           access_key_id: String.t(),
           secret_access_key: String.t()
-        ) :: %Credentials{}
+        ) :: %AwsSigner.Credentials{}
 
   def get_credentials(opts) do
     arn = Keyword.fetch!(opts, :arn)

@@ -4,6 +4,11 @@ defmodule AwsSigner.TeslaMiddlewareTest do
   require Assertions
   import Assertions
 
+  setup do
+    AwsSigner.Cache.start_link()
+    :ok
+  end
+
   def assume_role_response do
     """
     <AssumeRoleResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
@@ -106,7 +111,7 @@ defmodule AwsSigner.TeslaMiddlewareTest do
     aws_opts =
       Keyword.merge(common_aws_opts(),
         auth_method: :assume_role_with_web_identity,
-        web_identity_token: "_TEST_WEB_IDENTITY_TOKEN_"
+        web_identity_token_file: Path.join([File.cwd!, "test", "mocks", "token"])
       )
 
     env = %Tesla.Env{url: "http://foo.bar/baba"}
@@ -196,7 +201,7 @@ defmodule AwsSigner.TeslaMiddlewareTest do
     assert header_map["baba"] == "pena"
   end
 
-  test "sign/2 caching: valid cached entry" do
+  test "sign/2: cache hit" do
     # Not yet expired
     cached_response = %AwsSigner.Credentials{
       expiration: "2020-01-01T12:00:00Z",
@@ -206,92 +211,25 @@ defmodule AwsSigner.TeslaMiddlewareTest do
     }
 
     aws_opts =
-      Keyword.merge(common_aws_opts(),
-        auth_method: :instance_profile,
-        cachex_name: :test_cache
-      )
+      Keyword.merge(common_aws_opts(), auth_method: :instance_profile)
 
     env = %Tesla.Env{url: "http://foo.bar/baba"}
+    AwsSigner.Cache.put(aws_opts[:arn], cached_response)
 
-    {cache_args, sign_resp} =
+    sign_resp =
       Mocks.DateTime.with_time(~U[2020-01-01T00:00:00Z], fn ->
-        Mocks.Cache.with_response(:fetch, {:ok, cached_response}, fn ->
-          {call_args, sign_resp} =
-            Mocks.AwsClient.with_response(:should_not_be_called, fn ->
-              TeslaMiddleware.sign(env, aws_opts)
-            end)
-
-          # Plug.sign should not call AwsClient.sign at all (cached)
-          assert call_args == :unset
-          sign_resp
-        end)
-      end)
-
-    #
-    # 1. Test if we use cached credentials
-    #
-    header_map = Map.new(sign_resp.headers)
-    assert header_map["x-amz-security-token"] == "cached_token"
-    assert header_map["authorization"] =~ ~r{Credential=cached_accesskey}
-
-    #
-    # 2. Test if we avoid cache collisions by ensuring that:
-    #    2.1. a certain (non-generic) cache name is used
-    #    2.2. a certain (unique) cache key is used
-    #
-    arn = aws_opts[:arn]
-    assert [:test_cache, ^arn, fallback] = cache_args
-
-    #
-    # 3. Test if the cache fallback tries to obtain fresh credentials
-    #
-    assert is_function(fallback)
-
-    {_, fallback_res} =
-      Mocks.AwsClient.with_response(%{status: 200, body: instance_profile_response()}, fallback)
-
-    assert fallback_res == %AwsSigner.Credentials{
-             access_key_id: "instance_accesskey",
-             expiration: "2020-01-01T12:00:00Z",
-             secret_access_key: "instance_secretkey",
-             token: "instance_token"
-           }
-  end
-
-  test "sign/2 caching: ttl" do
-    cached_response = %AwsSigner.Credentials{
-      expiration: "2020-01-01T12:00:00Z",
-      access_key_id: "cached_accesskey",
-      secret_access_key: "cached_secretkey",
-      token: "cached_token"
-    }
-
-    env = %Tesla.Env{url: "http://foo.bar/baba"}
-
-    aws_opts =
-      Keyword.merge(common_aws_opts(),
-        auth_method: :assume_role,
-        access_key_id: "_TEST_ACCESS_KEY_ID_",
-        secret_access_key: "_TEST_SECRET_ACCESS_KEY_",
-        cachex_name: :test_cache
-      )
-
-    Mocks.DateTime.with_time(~U[2020-01-01T00:00:00Z], fn ->
-      Mocks.Cache.with_response(:fetch, {:commit, cached_response}, fn ->
-        {expire_at_args, _} =
-          Mocks.Cache.with_response(:expire_at, :ok, fn ->
-            # No Mocks.AwsClient here -- fallback should not be called
+        {call_args, sign_resp} =
+          Mocks.AwsClient.with_response(:should_not_be_called, fn ->
             TeslaMiddleware.sign(env, aws_opts)
           end)
 
-        # The cache entry should be set to expire 10s
-        # before the actual token expiration
-        assert expire_at_args == [
-                 :test_cache,
-                 aws_opts[:arn],
-                 DateTime.to_unix(~U[2020-01-01 11:59:50Z], :millisecond)
-               ]
+        # Plug.sign should not call AwsClient.sign at all (cached)
+        assert call_args == :unset
+        sign_resp
       end)
-    end)
+
+    header_map = Map.new(sign_resp.headers)
+    assert header_map["x-amz-security-token"] == "cached_token"
+    assert header_map["authorization"] =~ ~r{Credential=cached_accesskey}
   end
 end

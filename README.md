@@ -34,7 +34,6 @@ where `options` is a keyword list:
   region: "eu-central-1",       # (required)
   service: "es",                # (required)
   arn: "arn:aws:iam::123..."    # (required)
-  cachex_name: :aws_cache       # (optional) cache name (requires cachex); default: nil
   session_name: "..."           # (optional) aws session name
   access_key_id: "...",         # required if auth_method is :assume_role
   secret_access_key: "...",     # required if auth_method is :assume_role
@@ -62,13 +61,7 @@ config :aws_signer, logging: true
 
 ## Caching
 
-When caching is disabled (the default), a new AWS key will be issued for signing each request.
-
-When caching is enabled, AWS keys will be re-used on subsequent requests.
-
-To enable caching, you must:
-1. [Start Cachex](https://hexdocs.pm/cachex/getting-started.html) with a specific `name`
-2. Configure `cachex_name` option with the same value used for `name` in step 1.
+AWS keys will be re-used on subsequent requests to avoid unnecessary network round-trips.
 
 ## Caveats
 

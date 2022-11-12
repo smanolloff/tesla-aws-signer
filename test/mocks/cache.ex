@@ -23,6 +23,11 @@ defmodule Mocks.Cache do
     get_result(:expire_at)
   end
 
+  def expire(cache_name, key, epoch_ms) do
+    set_call_args(:expire, [cache_name, key, epoch_ms])
+    get_result(:expire)
+  end
+
   #
   # private
   #

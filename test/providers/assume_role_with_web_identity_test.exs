@@ -2,6 +2,11 @@ defmodule AwsSigner.Providers.AssumeRoleWithWebIdentityTest do
   use ExUnit.Case
   alias AwsSigner.Providers.AssumeRoleWithWebIdentity
 
+  setup do
+    AwsSigner.Cache.start_link()
+    :ok
+  end
+
   test "get_credentials/1" do
     resp_body = """
     <AssumeRoleWithWebIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
@@ -31,7 +36,7 @@ defmodule AwsSigner.Providers.AssumeRoleWithWebIdentityTest do
     opts = [
       arn: "arn:aws:iam::123456789012:role/aws-test-web-role",
       region: "eu-central-1",
-      web_identity_token: "_TEST_WEB_IDENTITY_TOKEN_"
+      web_identity_token_file: Path.join([File.cwd!, "test", "mocks", "token"])
     ]
 
     {call_args, result} =
