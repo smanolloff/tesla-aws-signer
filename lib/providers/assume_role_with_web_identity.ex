@@ -25,8 +25,6 @@ defmodule AwsSigner.Providers.AssumeRoleWithWebIdentity do
 
         # If it fails with 400, most likely the token has expired
         %{status: 400} ->
-          Logger.info("Re-reading web identity token")
-          Process.sleep(10000)
           token = get_token(opts, true)
 
           # If it fails again, let it crash
@@ -51,8 +49,8 @@ defmodule AwsSigner.Providers.AssumeRoleWithWebIdentity do
   defp get_token(opts, force \\ false) do
     filename = Keyword.fetch!(opts, :web_identity_token_file)
     fallback_fn = fn ->
+      Logger.info("Reading token file")
       token = File.read!(filename) |> String.trim()
-      Logger.error("READING FILE: #{token}")
       {:ok, token, :timer.seconds(3600)}
     end
 
