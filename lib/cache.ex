@@ -35,7 +35,7 @@ defmodule AwsSigner.Cache do
   #
 
   defp hit(key, value, expire_at) do
-    Logger.debug("Cache hit: #{inspect(key)}")
+    Logger.debug("Cache hit: #{inspect(key)} (#{expire_at})")
     {:hit, {value, expire_at}}
   end
 
