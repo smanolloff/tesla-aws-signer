@@ -1,13 +1,11 @@
 defmodule AwsSigner.CacheTest do
-  alias AwsSigner.Cache
   use ExUnit.Case
 
-  setup do
-    Cache.start_link()
-    :ok
-  end
+  alias AwsSigner.Cache
 
   test "fetch/2" do
+    Cache.start_link()
+
     assert Cache.fetch("k1") == :miss
     assert Cache.fetch("k1", fn -> {:ok, "v1"} end) == {:miss, {"v1", nil}}
     assert Cache.fetch("k1", fn -> {:ok, "v2"} end) == {:hit, {"v1", nil}}
@@ -28,15 +26,17 @@ defmodule AwsSigner.CacheTest do
     assert Cache.fetch("k5", fn -> "v7" end) == {:miss, :error, "v7"}
     assert Cache.fetch("k5") == :miss
 
-    assert Agent.get(Cache, & &1) == %{
+    assert Agent.get(Cache, & &1) == {nil, %{
       "k1" => {"v1", nil},
       "k2" => {"v3", nil},
       "k3" => {"v5", t1},
       "k4" => {"v6", t2}
-    }
+    }}
   end
 
   test "put/2" do
+    Cache.start_link()
+
     assert Cache.put("k1", "v1") == {"v1", nil}
     assert Cache.put("k2", "v2") == {"v2", nil}
     assert Cache.put("k3", "v3") == {"v3", nil}
@@ -45,17 +45,19 @@ defmodule AwsSigner.CacheTest do
     t = DateTime.to_unix(~U[2000-01-01T00:00:00Z])
     assert Cache.put("k4", "v5", t) == {"v5", t}
 
-    assert Agent.get(Cache, & &1) == %{
+    assert Agent.get(Cache, & &1) == {nil, %{
       "k1" => {"v4", nil},
       "k2" => {"v2", nil},
       "k3" => {"v3", nil},
       "k4" => {"v5", t}
-    }
+    }}
   end
 
   test "delete/1" do
+    Cache.start_link()
+
     Cache.put("k1", "v1")
     assert :ok = Cache.delete("k1")
-    assert Agent.get(Cache, & &1) == %{}
+    assert Agent.get(Cache, & &1) == {nil, %{}}
   end
 end

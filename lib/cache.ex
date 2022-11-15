@@ -2,45 +2,53 @@ defmodule AwsSigner.Cache do
   require Logger
   use Agent
 
-  def start_link(_opts \\ []),
-    do: Agent.start_link(fn -> %{} end, name: __MODULE__)
+  def start_link(opts \\ []),
+    do: Agent.start_link(fn -> {opts[:log], %{}} end, name: __MODULE__)
 
   def fetch(key, fallback \\ nil) do
     case Agent.get(__MODULE__, & &1) do
-      %{^key => {value, nil}} ->
-        hit(key, value, nil)
+      {log, %{^key => {value, nil}}} ->
+        hit(key, value, nil, log)
 
-      %{^key => {value, t}} ->
+      {log, %{^key => {value, t}}} ->
         now = DateTime.utc_now() |> DateTime.to_unix(:millisecond)
         if now > t,
-          do: miss(key, fallback),
-        else: hit(key, value, t)
+          do: miss(key, fallback, log),
+        else: hit(key, value, t, log)
 
-      %{} ->
-        miss(key, fallback)
+      {log, %{}} ->
+        miss(key, fallback, log)
     end
   end
 
   def put(key, value, expire_at \\ nil) do
-    :ok = Agent.update(__MODULE__, fn state -> Map.put(state, key, {value, expire_at}) end)
+    Agent.update(__MODULE__, fn {log, store} ->
+      {log, Map.put(store, key, {value, expire_at})}
+    end)
+
     {value, expire_at}
   end
 
   def delete(key) do
-    :ok = Agent.update(__MODULE__, fn state -> Map.delete(state, key) end)
+    Agent.update(__MODULE__, fn {log, store} ->
+      {log, Map.delete(store, key)}
+    end)
   end
 
   #
   # private
   #
 
-  defp hit(key, value, expire_at) do
-    Logger.debug("Cache hit: #{inspect(key)} (#{expire_at})")
+  defp hit(key, value, expire_at, log) do
+    if log,
+      do: Logger.info("Cache hit: #{inspect(key)} (#{expire_at})")
+
     {:hit, {value, expire_at}}
   end
 
-  defp miss(key, fallback) do
-    Logger.debug("Cache miss: #{inspect(key)}")
+  defp miss(key, fallback, log) do
+    if log,
+      do: Logger.info("Cache miss: #{inspect(key)}")
 
     if is_function(fallback) do
       case fallback.() do

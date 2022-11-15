@@ -7,12 +7,22 @@ A [Tesla](https://github.com/teamon/tesla) plug for signing HTTP requests with [
 ```
 def deps do
   [
-    {:aws_signer, "~> 1.0"}
+    {:aws_signer, "~> 2.0"}
   ]
 end
 ```
 
 ## Usage
+
+Start the cache:
+
+```elixir
+AwsSigner.Cache.start_link(log: true)
+```
+
+Use `log: true` to enable logging of cache hits/misses (keys only). 
+
+Define your http client:
 
 ```elixir
 defmodule MyHttpClient do
@@ -30,6 +40,8 @@ where `options` is a keyword list:
 
 ```elixir
 [
+  log: false                    # (optional) log token requests; see below
+  cache: true                   # (optional) cache tokens; see below
   auth_method: :assume_role     # (required) see below for possible values
   region: "eu-central-1",       # (required)
   service: "es",                # (required)
@@ -49,19 +61,14 @@ where `options` is a keyword list:
 
 You can read more about [AWS STS](https://docs.aws.amazon.com/STS/latest/APIReference/API_Operations.html) and [AWS Instance Profiles](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) in the AWS official docs.
 
-## Logging
-
-For debugging purposes, you can enable logging all requests to AWS STS service (made when issuing tokens). Do so with caution, AWS keys are not something you want in your logs (you know, security).
-
-In you app's config:
-
-```elixir
-config :aws_signer, logging: true
-```
+Use `log: true` to enable logging of all requests to AWS STS service (made when issuing tokens). Do so with caution, as AWS keys are not something you want in your logs (you know, security).
 
 ## Caching
 
-AWS keys will be re-used on subsequent requests to avoid unnecessary network round-trips.
+For debugging purposes, you can provide the `cache: false` option to disable caching of aws keys.
+AWS keys will be re-issued on each request, which will cause lot of unnecessary network round-trips.
+
+If caching is disabled, you can go without `AwsSigner.Cache.start_link`.
 
 ## Caveats
 
@@ -82,8 +89,6 @@ This library provides basic support for AWS [`AssumeRole`](https://docs.aws.amaz
 This has been tested with `es` service only (the AWS keyword for Elasticsearch service).
 
 It *should* work for other AWS services, but there may be exceptions -- like the `s3` service, which [according to the AWS docs](https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html) expects double-encoded path segments. Support for this should be easy to add, pull requests are welcome.
-
-Also, keep in mind I have not personally tested the `assume_role_with_web_identity` auth method in production yet, I'd appreciate any feedback.
 
 ## Contributing
 
