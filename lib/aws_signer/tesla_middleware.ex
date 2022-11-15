@@ -1,7 +1,4 @@
 defmodule AwsSigner.TeslaMiddleware do
-  alias AwsSigner.Cache
-  require Logger
-
   @behaviour Tesla.Middleware
 
   def call(env, next, opts) do
@@ -15,6 +12,7 @@ defmodule AwsSigner.TeslaMiddleware do
 
     signature =
       AwsSigner.sign_v4(
+        log: opts[:log],
         verb: env.method |> to_string() |> String.upcase(),
         url: Tesla.build_url(env.url, env.query),
         content: env.body || "",
@@ -34,9 +32,15 @@ defmodule AwsSigner.TeslaMiddleware do
   #
 
   defp get_credentials(opts) do
+    if opts[:cache],
+      do: get_credentials_from_cache(opts),
+    else: get_credentials_from_provider(opts)
+  end
+
+  defp get_credentials_from_cache(opts) do
     arn = Keyword.fetch!(opts, :arn)
     fallback_fn = fn ->
-      case apply(provider(opts), :get_credentials, [opts]) do
+      case get_credentials_from_provider(opts) do
         %AwsSigner.Credentials{} = res ->
           {:ok, expiration, _} = DateTime.from_iso8601(res.expiration)
           expire_at = DateTime.to_unix(expiration, :millisecond) - 10_000
@@ -47,11 +51,15 @@ defmodule AwsSigner.TeslaMiddleware do
       end
     end
 
-    case Cache.fetch(arn, fallback_fn) do
+    case AwsSigner.Cache.fetch(arn, fallback_fn) do
       {:hit, {value, _}} -> value
       {:miss, {value, _}} -> value
       {:miss, :error, any} -> raise "Bad return from cache fallback: #{inspect(any)}"
     end
+  end
+
+  defp get_credentials_from_provider(opts) do
+    provider(opts).get_credentials(opts)
   end
 
   defp provider(opts) do

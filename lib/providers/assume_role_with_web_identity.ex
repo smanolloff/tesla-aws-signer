@@ -1,7 +1,5 @@
 defmodule AwsSigner.Providers.AssumeRoleWithWebIdentity do
   alias AwsSigner.Credentials
-  alias AwsSigner.Cache
-  require Logger
 
   @client Application.get_env(:aws_signer, :aws_client, AwsSigner.Client)
 
@@ -17,22 +15,9 @@ defmodule AwsSigner.Providers.AssumeRoleWithWebIdentity do
     region = Keyword.fetch!(opts, :region)
     session_name = Keyword.get(opts, :session_name, "default")
     token = get_token(opts)
+    url = "https://sts.#{region}.amazonaws.com?#{query(arn, session_name,  token)}"
 
-    body =
-      case @client.get!("https://sts.#{region}.amazonaws.com?#{query(arn, session_name, token)}") do
-        %{status: 200, body: body} ->
-          body
-
-        # If it fails with 400, most likely the token has expired
-        %{status: 400} ->
-          token = get_token(opts, true)
-
-          # If it fails again, let it crash
-          %{status: 200, body: body} =
-            @client.get!("https://sts.#{region}.amazonaws.com?#{query(arn, session_name, token)}")
-
-          body
-      end
+    %{status: 200, body: body} = @client.get!(url)
 
     %Credentials{
       access_key_id: extract(body, "AccessKeyId"),
@@ -46,21 +31,13 @@ defmodule AwsSigner.Providers.AssumeRoleWithWebIdentity do
   # private
   #
 
-  defp get_token(opts, force \\ false) do
-    filename = Keyword.fetch!(opts, :web_identity_token_file)
-    fallback_fn = fn ->
-      Logger.info("Reading token file")
-      token = File.read!(filename) |> String.trim()
-      {:ok, token, :timer.seconds(3600)}
-    end
-
-    if force, do: Cache.delete(filename)
-
-    case Cache.fetch(filename, fallback_fn) do
-      {:hit, {value, _}} -> value
-      {:miss, {value, _}} -> value
-      {:miss, :error, any} -> raise "Bad return from cache fallback: #{inspect(any)}"
-    end
+  # No need for cache here
+  # The web identity token file is read very rarely
+  # (only when the session token expires, eg. hourly)
+  defp get_token(opts) do
+    Keyword.fetch!(opts, :web_identity_token_file)
+    |> File.read!()
+    |> String.trim()
   end
 
   defp encode(str),

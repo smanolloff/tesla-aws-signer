@@ -72,6 +72,7 @@ defmodule AwsSigner.TeslaMiddlewareTest do
 
   def common_aws_opts do
     [
+      cache: true,
       arn: "arn:aws:iam::123456789012:role/aws-test-role",
       region: "eu-central-1",
       service: "es"

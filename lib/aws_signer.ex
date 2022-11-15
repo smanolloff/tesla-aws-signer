@@ -71,10 +71,10 @@ defmodule AwsSigner do
   defp hash(string),
     do: :crypto.hash(:sha256, string) |> Base.encode16(case: :lower)
 
-  defp hmac(key, string) do
-    if System.otp_release() >= "22",
-      do: :crypto.mac(:hmac, :sha256, key, string),
-    else: :crypto.hmac(:sha256, key, string)
+  if System.otp_release() >= "22" do
+    defp hmac(key, string), do: :crypto.mac(:hmac, :sha256, key, string)
+  else
+    defp hmac(key, string), do: :crypto.hmac(:sha256, key, string)
   end
 
   #
